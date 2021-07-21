@@ -1,0 +1,42 @@
+#! /usr/bin/env bash
+
+error() {
+    echo "Error: $1"
+    exit_code=${2:-1}
+    exit $exit_code
+}
+
+usage() {
+    echo "Usage: dockerall [mode] operation
+    mode:      container|volume (default container)
+    operation: stop|rm (stop operation cannot be used with volume mode)
+    "
+}
+
+[ "$#" -lt 1 ] && { usage; error "Need at least one argumenti: opearation(stop|rm)"; }
+
+validate() {
+    [ "$1" != "$2" ] && [ "$1" != "$3" ] && { 
+        usage;
+        error "Argument not valid. Valid arguments: $2|$3"
+    }
+}
+
+execute() {
+    list=$()
+    if [ "$1" == "container" ]; then
+        docker "$1" ls --all | tail -n+2 | awk '{print $1}' | xargs docker container "$2"
+    elif [ "$1" == "volume" ] && [ "$2" == "rm" ]; then
+        docker "$1" ls | tail -n+2 | awk '{print $2}' | xargs docker volume "$2"
+    else
+        usage
+        error "stop operation cannot be used with volume mode"
+    fi
+}
+
+[ "$#" -eq 1 ] && { validate "$1" "stop" "rm"; execute container "$1"; exit 0; }
+
+[ "$#" -eq 2 ] && { validate "$1" "container" "volume"; validate "$2" "stop" "rm"; execute "$1" "$2"; exit 0; }
+
+usage
+error "Got more arguments than expected. Expected 1 or 2, got $#"
